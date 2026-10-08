@@ -1,0 +1,8 @@
+{
+  "name": "Akki Study",
+  "description": "Akki Study — Free batches, video lectures, chapter notes and DPP study materials built for Cloudflare Pages and modern edge runtimes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
