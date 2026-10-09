@@ -1,10 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { GraduationCap, Sparkles, Moon, Sun } from "lucide-react";
+import { GraduationCap, Sparkles, Moon, Sun, BookmarkCheck } from "lucide-react";
 import { type ReactNode } from "react";
 import { useTheme } from "@/hooks/use-theme";
+import { useEnrolledBatches } from "@/hooks/use-enrolled-batches";
 
 export function Shell({ children }: { children: ReactNode }) {
   const { isDark, toggleTheme } = useTheme();
+  const { enrolledCount } = useEnrolledBatches();
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-sky-100 selection:text-sky-900 dark:selection:bg-sky-900 dark:selection:text-sky-100 transition-colors duration-200">
@@ -27,9 +29,24 @@ export function Shell({ children }: { children: ReactNode }) {
           <nav className="flex items-center gap-2 sm:gap-3">
             <Link
               to="/"
+              search={{ tab: "all" }}
               className="inline-flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-sky-50 dark:hover:bg-slate-800 hover:text-sky-700 dark:hover:text-sky-300"
             >
               <span>All Batches</span>
+            </Link>
+
+            <Link
+              to="/"
+              search={{ tab: "enrolled" }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300"
+            >
+              <BookmarkCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Enrolled</span>
+              {enrolledCount > 0 && (
+                <span className="ml-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.2 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300">
+                  {enrolledCount}
+                </span>
+              )}
             </Link>
 
             {/* Dark Mode Toggle */}

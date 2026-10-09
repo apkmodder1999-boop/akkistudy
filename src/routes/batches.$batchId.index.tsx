@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { fetchBatchDetails, subjectImage } from "@/lib/api";
 import { Shell, PageTitle, Crumbs, Loading, ErrorBox, EmptyBox } from "@/components/shell";
-import { BookOpen, Search, ArrowRight, User } from "lucide-react";
+import { BookOpen, Search, ArrowRight, User, BookmarkCheck, Check } from "lucide-react";
+import { useEnrolledBatches } from "@/hooks/use-enrolled-batches";
 
 export const Route = createFileRoute("/batches/$batchId/")({
   head: () => ({
@@ -26,6 +27,8 @@ export const Route = createFileRoute("/batches/$batchId/")({
 function BatchPage() {
   const { batchId } = Route.useParams();
   const [filter, setFilter] = useState("");
+  const { isEnrolled, toggleEnroll } = useEnrolledBatches();
+  const enrolled = isEnrolled(batchId);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["batch", batchId],
@@ -62,7 +65,29 @@ function BatchPage() {
           data?.byName ??
           "Select a subject below to explore chapters, watch video lectures, and access study materials."
         }
-      />
+      >
+        <button
+          type="button"
+          onClick={() => toggleEnroll(batchId, data?.name)}
+          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition shadow-xs cursor-pointer ${
+            enrolled
+              ? "border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60"
+              : "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-sky-500/20 hover:brightness-105 active:scale-98"
+          }`}
+        >
+          {enrolled ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 stroke-3" />
+              <span>Enrolled ✓</span>
+            </>
+          ) : (
+            <>
+              <BookmarkCheck className="h-3.5 w-3.5" />
+              <span>Enroll for Free</span>
+            </>
+          )}
+        </button>
+      </PageTitle>
 
       {isLoading && <Loading text="Loading batch subjects…" />}
       {error && <ErrorBox message={(error as Error).message} />}
