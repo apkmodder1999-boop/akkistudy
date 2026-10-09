@@ -9,9 +9,12 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  X,
 } from "lucide-react";
-import { fetchBatches } from "@/lib/api";
+import { fetchAllBatches } from "@/lib/api";
 import { Shell, PageTitle, Loading, ErrorBox, EmptyBox } from "@/components/shell";
+
+const PAGE_SIZE = 50;
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -62,34 +65,55 @@ function BatchesPage() {
   const [query, setQuery] = useState("");
   const [jumpPageInput, setJumpPageInput] = useState("");
 
-  const { data, isLoading, error, isFetching } = useQuery({
-    queryKey: ["batches", page],
-    queryFn: () => fetchBatches(page, 50),
-    staleTime: 5 * 60 * 1000,
+  const {
+    data: allBatches = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["all-batches"],
+    queryFn: fetchAllBatches,
+    staleTime: 15 * 60 * 1000,
   });
 
   useEffect(() => {
     const t = setTimeout(() => {
       setQuery(q);
-    }, 250);
+      // Reset to page 1 when user types a search query
+      if (q.trim()) {
+        navigate({
+          to: "/",
+          search: { page: 1 },
+        });
+      }
+    }, 200);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, navigate]);
 
-  const totalPages = data?.totalPages ?? 1;
-  const hasMore = data?.hasMore ?? false;
-  const totalCount = data?.total;
-
-  const batches = useMemo(() => {
-    const rawBatches = data?.batches ?? [];
+  // Global search across ALL batches
+  const filteredBatches = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return rawBatches;
-    return rawBatches.filter((b) =>
-      (b.name + " " + (b.byName ?? "")).toLowerCase().includes(needle),
+    if (!needle) return allBatches;
+    return allBatches.filter((b) =>
+      `${b.name} ${b.byName ?? ""} ${b.class ?? ""} ${b.type ?? ""}`.toLowerCase().includes(needle),
     );
-  }, [data?.batches, query]);
+  }, [allBatches, query]);
+
+  const totalFiltered = filteredBatches.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+
+  // Paginated display
+  const displayedBatches = useMemo(() => {
+    // If search active and results are small, display all directly
+    if (query.trim() && totalFiltered <= PAGE_SIZE) {
+      return filteredBatches;
+    }
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredBatches.slice(start, start + PAGE_SIZE);
+  }, [filteredBatches, currentPage, query, totalFiltered]);
 
   const goToPage = (newPage: number) => {
-    if (newPage < 1) return;
+    if (newPage < 1 || newPage > totalPages) return;
     navigate({
       to: "/",
       search: { page: newPage },
@@ -100,7 +124,7 @@ function BatchesPage() {
   const handleJumpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const target = parseInt(jumpPageInput.trim(), 10);
-    if (!isNaN(target) && target > 0) {
+    if (!isNaN(target) && target >= 1 && target <= totalPages) {
       goToPage(target);
       setJumpPageInput("");
     }
@@ -110,19 +134,14 @@ function BatchesPage() {
   const pageNumbers = useMemo(() => {
     const pages: number[] = [];
     const maxPagesToShow = 5;
-    const start = Math.max(1, page - 2);
-    const end = Math.max(
-      start + maxPagesToShow - 1,
-      totalPages ? Math.min(page + 2, totalPages) : page + 2,
-    );
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, start + maxPagesToShow - 1);
 
     for (let p = start; p <= end; p++) {
-      if (totalPages && p > totalPages && p > page) break;
       pages.push(p);
-      if (pages.length >= maxPagesToShow) break;
     }
     return pages;
-  }, [page, totalPages]);
+  }, [currentPage, totalPages]);
 
   return (
     <Shell>
@@ -135,55 +154,82 @@ function BatchesPage() {
         subtitle="Browse all completed and active batches, full lectures, notes, and DPPs."
       />
 
-      {/* Polished Search Bar with Sky Accent */}
+      {/* Global Search Bar with Clear Button */}
       <div className="relative mb-6">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search batches on this page by name, class, faculty…"
-          className="w-full rounded-2xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 py-3.5 pl-11 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm transition hover:border-sky-200 dark:hover:border-slate-700 focus:border-sky-400 dark:focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-4 focus:ring-sky-100 dark:focus:ring-sky-950/50"
+          placeholder="Search batches by name, class, faculty…"
+          className="w-full rounded-2xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 py-3.5 pl-11 pr-10 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm transition hover:border-sky-200 dark:hover:border-slate-700 focus:border-sky-400 dark:focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-4 focus:ring-sky-100 dark:focus:ring-sky-950/50"
         />
+        {q && (
+          <button
+            type="button"
+            onClick={() => setQ("")}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            title="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
-      {isLoading && <Loading text={`Loading batches (page ${page})…`} />}
+      {isLoading && <Loading text="Loading all batches upfront…" />}
       {error && <ErrorBox message={(error as Error).message} />}
-      {!isLoading && !error && batches.length === 0 && (
+      {!isLoading && !error && filteredBatches.length === 0 && (
         <EmptyBox
           message={
-            query ? `No batches found matching "${query}".` : `No batches found on page ${page}.`
+            query ? `No batches found matching "${query}".` : "No batches found in the catalog."
           }
         />
       )}
 
-      {!isLoading && !error && (
+      {/* Exact Count Header matching the user screenshot */}
+      {!isLoading && !error && filteredBatches.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-2">
-            <span>
-              Showing{" "}
-              <strong className="font-semibold text-slate-800 dark:text-slate-200">
-                {batches.length}
-              </strong>{" "}
-              batches on{" "}
-              <span className="font-bold text-sky-600 dark:text-sky-400">Page {page}</span>
-              {totalCount ? ` (of ~${totalCount} total)` : ""}
-            </span>
-            {isFetching && (
-              <span className="inline-flex items-center text-[11px] text-sky-500 animate-pulse">
-                Updating…
+          <div>
+            {query.trim() ? (
+              <span>
+                Showing{" "}
+                <strong className="font-semibold text-slate-800 dark:text-slate-200">
+                  {totalFiltered}
+                </strong>{" "}
+                of{" "}
+                <strong className="font-semibold text-slate-800 dark:text-slate-200">
+                  {totalFiltered}
+                </strong>{" "}
+                batches
+              </span>
+            ) : (
+              <span>
+                Showing{" "}
+                <strong className="font-semibold text-slate-800 dark:text-slate-200">
+                  {displayedBatches.length}
+                </strong>{" "}
+                of{" "}
+                <strong className="font-semibold text-slate-800 dark:text-slate-200">
+                  {allBatches.length}
+                </strong>{" "}
+                batches
+                {totalPages > 1 && (
+                  <span className="ml-1 text-slate-400">
+                    (Page {currentPage} of {totalPages})
+                  </span>
+                )}
               </span>
             )}
           </div>
 
           <span className="text-[11px] bg-sky-50 dark:bg-slate-800 px-2.5 py-1 rounded-md text-sky-700 dark:text-sky-300 font-medium">
-            Limit: 50 batches / page
+            {allBatches.length} total batches loaded
           </span>
         </div>
       )}
 
       {/* Batches Grid */}
       <div className="grid gap-5 sm:grid-cols-2">
-        {batches.map((b) => (
+        {displayedBatches.map((b) => (
           <Link
             key={b._id}
             to="/batches/$batchId"
@@ -267,15 +313,15 @@ function BatchesPage() {
         ))}
       </div>
 
-      {/* Pagination Bar */}
-      {!isLoading && !error && (
+      {/* Pagination Bar (only when more than 1 page) */}
+      {!isLoading && !error && totalPages > 1 && (
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-sky-100/80 dark:border-slate-800 pt-6 sm:flex-row">
           {/* Previous & Next Buttons */}
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => goToPage(1)}
-              disabled={page <= 1}
+              disabled={currentPage <= 1}
               className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 transition hover:bg-sky-50 dark:hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-40"
               title="First Page"
             >
@@ -283,8 +329,8 @@ function BatchesPage() {
             </button>
             <button
               type="button"
-              onClick={() => goToPage(page - 1)}
-              disabled={page <= 1}
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage <= 1}
               className="inline-flex items-center gap-1.5 rounded-xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-sky-50 dark:hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-40 cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -300,7 +346,7 @@ function BatchesPage() {
                 type="button"
                 onClick={() => goToPage(p)}
                 className={`inline-flex h-9 min-w-9 items-center justify-center rounded-xl px-2.5 text-xs font-bold transition cursor-pointer ${
-                  p === page
+                  p === currentPage
                     ? "bg-sky-600 text-white shadow-sm shadow-sky-500/30"
                     : "border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-slate-800"
                 }`}
@@ -314,14 +360,14 @@ function BatchesPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => goToPage(page + 1)}
-              disabled={!hasMore && page >= totalPages}
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage >= totalPages}
               className="inline-flex items-center gap-1.5 rounded-xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-sky-50 dark:hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-40 cursor-pointer"
             >
               <span>Next</span>
               <ChevronRight className="h-4 w-4" />
             </button>
-            {totalPages > 0 && page < totalPages && (
+            {currentPage < totalPages && (
               <button
                 type="button"
                 onClick={() => goToPage(totalPages)}
@@ -337,7 +383,7 @@ function BatchesPage() {
               <input
                 type="number"
                 min={1}
-                max={totalPages || 99}
+                max={totalPages}
                 value={jumpPageInput}
                 onChange={(e) => setJumpPageInput(e.target.value)}
                 placeholder="Go to"
