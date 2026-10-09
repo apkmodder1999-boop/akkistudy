@@ -108,9 +108,17 @@ export type VideoDetails = {
   types?: string[];
 };
 
+export type BatchesPageResponse = {
+  batches: Batch[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+};
+
 /** In-memory cache for fast responsive navigation */
-let memoryBatchesCache: Batch[] | null = null;
-const BATCHES_CACHE_KEY = "pw_batches_cache_v2";
+const pageBatchesCache = new Map<string, BatchesPageResponse>();
 
 /** Safe Fetch Helper with Timeout */
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 12000) {
@@ -171,91 +179,77 @@ export function subjectImage(subject: Subject): string | undefined {
 }
 
 /**
- * Loads all batches directly from the API.
- * Endpoint: http://a.pimaxer.in/v1/batches?limit=0
+ * Loads batches directly from the API.
+ * Endpoint: https://a.pimaxer.in/v1/batches?page={page}&limit=50
  */
-export async function fetchBatches(): Promise<Batch[]> {
-  if (memoryBatchesCache && memoryBatchesCache.length > 0) {
-    return memoryBatchesCache;
-  }
-  return fetchBatchesFromNetwork();
-}
-
-async function fetchBatchesFromNetwork(): Promise<Batch[]> {
-  try {
-    let rawBatches: Record<string, unknown>[] = [];
-
-    // Query with limit=0 to get ALL batches in a single fast call
-    const firstRes = await getJSON<{
-      success?: boolean;
-      total?: number;
-      data?: Record<string, unknown>[];
-    }>(`${API_BASE}/v1/batches?limit=0`);
-
-    if (Array.isArray(firstRes.data) && firstRes.data.length > 0) {
-      rawBatches = firstRes.data;
-    }
-
-    // In case limit=0 was paginated upstream, fetch remaining pages to get 100% of batches
-    const total = firstRes.total ?? rawBatches.length;
-    if (rawBatches.length < total) {
-      let page = 2;
-      while (rawBatches.length < total && page <= 10) {
-        try {
-          const nextRes = await getJSON<{
-            data?: Record<string, unknown>[];
-          }>(`${API_BASE}/v1/batches?page=${page}&limit=100`);
-          if (!nextRes.data || nextRes.data.length === 0) break;
-          rawBatches.push(...nextRes.data);
-          page++;
-        } catch {
-          break;
-        }
-      }
-    }
-
-    // Deduplicate by ID and map
-    const seen = new Set<string>();
-    const list: Batch[] = [];
-
-    for (const b of rawBatches) {
-      const id = String(b["_id"] || b["batch_id"] || b["id"]);
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-
-      list.push({
-        _id: id,
-        name: String(b["name"] || "Untitled Batch"),
-        class: typeof b["class"] === "string" ? b["class"] : undefined,
-        slug: typeof b["slug"] === "string" ? b["slug"] : undefined,
-        byName: String(b["byName"] || b["cohort"] || b["description"] || ""),
-        startDate: typeof b["startDate"] === "string" ? b["startDate"] : undefined,
-        endDate: typeof b["endDate"] === "string" ? b["endDate"] : undefined,
-        language: String(b["language"] || b["medium"] || "Hinglish"),
-        previewImage: getBatchImageUrl(b["previewImage"]) || (b["photo"] as string) || undefined,
-        feeTotal: typeof b["feeTotal"] === "number" ? b["feeTotal"] : undefined,
-        type: String(b["type"] || b["batch_type"] || (b["class"] ? `Class ${b["class"]}` : "")),
-        status: typeof b["status"] === "string" ? b["status"] : undefined,
-        price: typeof b["price"] === "object" ? (b["price"] as Record<string, unknown>) : undefined,
-      });
-    }
-
-    if (list.length > 0) {
-      memoryBatchesCache = list;
-      return list;
-    }
-  } catch (err) {
-    if (memoryBatchesCache && memoryBatchesCache.length > 0) {
-      return memoryBatchesCache;
-    }
-    throw err;
+export async function fetchBatches(page = 1, limit = 50): Promise<BatchesPageResponse> {
+  const cacheKey = `${page}_${limit}`;
+  const cached = pageBatchesCache.get(cacheKey);
+  if (cached) {
+    return cached;
   }
 
-  if (memoryBatchesCache && memoryBatchesCache.length > 0) {
-    return memoryBatchesCache;
+  const url = `${API_BASE}/v1/batches?page=${page}&limit=${limit}`;
+  const res = await getJSON<{
+    success?: boolean;
+    total?: number;
+    count?: number;
+    data?: Record<string, unknown>[];
+  }>(url);
+
+  const rawBatches = Array.isArray(res.data) ? res.data : [];
+  const reportedTotal =
+    typeof res.total === "number" && res.total > 0
+      ? res.total
+      : typeof res.count === "number" && res.count > 0
+        ? res.count
+        : undefined;
+
+  const seen = new Set<string>();
+  const list: Batch[] = [];
+
+  for (const b of rawBatches) {
+    const id = String(b["_id"] || b["batch_id"] || b["id"]);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+
+    list.push({
+      _id: id,
+      name: String(b["name"] || "Untitled Batch"),
+      class: typeof b["class"] === "string" ? b["class"] : undefined,
+      slug: typeof b["slug"] === "string" ? b["slug"] : undefined,
+      byName: String(b["byName"] || b["cohort"] || b["description"] || ""),
+      startDate: typeof b["startDate"] === "string" ? b["startDate"] : undefined,
+      endDate: typeof b["endDate"] === "string" ? b["endDate"] : undefined,
+      language: String(b["language"] || b["medium"] || "Hinglish"),
+      previewImage: getBatchImageUrl(b["previewImage"]) || (b["photo"] as string) || undefined,
+      feeTotal: typeof b["feeTotal"] === "number" ? b["feeTotal"] : undefined,
+      type: String(b["type"] || b["batch_type"] || (b["class"] ? `Class ${b["class"]}` : "")),
+      status: typeof b["status"] === "string" ? b["status"] : undefined,
+      price: typeof b["price"] === "object" ? (b["price"] as Record<string, unknown>) : undefined,
+    });
   }
 
-  throw new Error("Could not load batches list from API. Please verify your internet connection.");
+  const total =
+    reportedTotal ?? (list.length === limit ? page * limit + 1 : (page - 1) * limit + list.length);
+  const totalPages = reportedTotal
+    ? Math.max(1, Math.ceil(reportedTotal / limit))
+    : list.length === limit
+      ? page + 1
+      : page;
+  const hasMore = list.length === limit || (reportedTotal !== undefined && page < totalPages);
+
+  const result: BatchesPageResponse = {
+    batches: list,
+    total,
+    page,
+    limit,
+    totalPages,
+    hasMore,
+  };
+
+  pageBatchesCache.set(cacheKey, result);
+  return result;
 }
 
 /**

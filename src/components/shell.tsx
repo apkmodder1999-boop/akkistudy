@@ -1,12 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { GraduationCap, Sparkles, Moon, Sun, Send } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { GraduationCap, Sparkles, Moon, Sun } from "lucide-react";
+import { type ReactNode } from "react";
 import { useTheme } from "@/hooks/use-theme";
-import { TelegramModal, TelegramFloatingButton } from "@/components/TelegramModal";
 
 export function Shell({ children }: { children: ReactNode }) {
   const { isDark, toggleTheme } = useTheme();
-  const [isTelegramOpen, setIsTelegramOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-sky-100 selection:text-sky-900 dark:selection:bg-sky-900 dark:selection:text-sky-100 transition-colors duration-200">
@@ -34,18 +32,6 @@ export function Shell({ children }: { children: ReactNode }) {
               <span>All Batches</span>
             </Link>
 
-            {/* Telegram Community Button */}
-            <button
-              type="button"
-              onClick={() => setIsTelegramOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/60 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-sky-700 dark:text-sky-300 transition hover:bg-sky-100 dark:hover:bg-sky-900/80 hover:border-sky-300 cursor-pointer shadow-2xs"
-              title="Join Akki Study Telegram Channel"
-            >
-              <Send className="h-3.5 w-3.5 fill-current text-sky-500 dark:text-sky-400" />
-              <span className="hidden sm:inline">Telegram</span>
-              <span className="flex h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
-            </button>
-
             {/* Dark Mode Toggle */}
             <button
               type="button"
@@ -65,12 +51,6 @@ export function Shell({ children }: { children: ReactNode }) {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-20 pt-6 sm:px-6">{children}</main>
-
-      {/* Cool Telegram Channel Popup */}
-      <TelegramModal isOpen={isTelegramOpen} onClose={() => setIsTelegramOpen(false)} />
-
-      {/* Floating Bottom-Right Telegram Trigger */}
-      <TelegramFloatingButton onOpen={() => setIsTelegramOpen(true)} />
     </div>
   );
 }

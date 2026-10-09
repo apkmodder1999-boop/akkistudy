@@ -1,11 +1,25 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Sparkles, ArrowRight } from "lucide-react";
+import {
+  Search,
+  Sparkles,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { fetchBatches } from "@/lib/api";
 import { Shell, PageTitle, Loading, ErrorBox, EmptyBox } from "@/components/shell";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>) => {
+    const raw = Number(search["page"]);
+    return {
+      page: !isNaN(raw) && raw > 0 ? Math.floor(raw) : 1,
+    };
+  },
   head: () => ({
     meta: [
       { title: "Akki Study — Premium Batches, Lectures & Study Material" },
@@ -40,12 +54,18 @@ function formatBatchDate(dateStr?: string): string {
 }
 
 function BatchesPage() {
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const page = search.page || 1;
+
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["batches"],
-    queryFn: fetchBatches,
-    staleTime: 10 * 60 * 1000,
+  const [jumpPageInput, setJumpPageInput] = useState("");
+
+  const { data, isLoading, error, isFetching } = useQuery({
+    queryKey: ["batches", page],
+    queryFn: () => fetchBatches(page, 50),
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
@@ -55,12 +75,54 @@ function BatchesPage() {
     return () => clearTimeout(t);
   }, [q]);
 
+  const totalPages = data?.totalPages ?? 1;
+  const hasMore = data?.hasMore ?? false;
+  const totalCount = data?.total;
+
   const batches = useMemo(() => {
+    const rawBatches = data?.batches ?? [];
     const needle = query.trim().toLowerCase();
-    const all = data ?? [];
-    if (!needle) return all;
-    return all.filter((b) => (b.name + " " + (b.byName ?? "")).toLowerCase().includes(needle));
-  }, [data, query]);
+    if (!needle) return rawBatches;
+    return rawBatches.filter((b) =>
+      (b.name + " " + (b.byName ?? "")).toLowerCase().includes(needle),
+    );
+  }, [data?.batches, query]);
+
+  const goToPage = (newPage: number) => {
+    if (newPage < 1) return;
+    navigate({
+      to: "/",
+      search: { page: newPage },
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleJumpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const target = parseInt(jumpPageInput.trim(), 10);
+    if (!isNaN(target) && target > 0) {
+      goToPage(target);
+      setJumpPageInput("");
+    }
+  };
+
+  // Generate page numbers to display around the current page
+  const pageNumbers = useMemo(() => {
+    const pages: number[] = [];
+    const maxPagesToShow = 5;
+    const start = Math.max(1, page - 2);
+    const end = Math.max(
+      start + maxPagesToShow - 1,
+      totalPages ? Math.min(page + 2, totalPages) : page + 2,
+    );
+
+    for (let p = start; p <= end; p++) {
+      if (totalPages && p > totalPages && p > page) break;
+      pages.push(p);
+      if (pages.length >= maxPagesToShow) break;
+    }
+    return pages;
+  }, [page, totalPages]);
 
   return (
     <Shell>
@@ -79,23 +141,42 @@ function BatchesPage() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search batches by name, class, faculty…"
+          placeholder="Search batches on this page by name, class, faculty…"
           className="w-full rounded-2xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 py-3.5 pl-11 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm transition hover:border-sky-200 dark:hover:border-slate-700 focus:border-sky-400 dark:focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-4 focus:ring-sky-100 dark:focus:ring-sky-950/50"
         />
       </div>
 
-      {isLoading && <Loading text="Loading batches list…" />}
+      {isLoading && <Loading text={`Loading batches (page ${page})…`} />}
       {error && <ErrorBox message={(error as Error).message} />}
-      {!isLoading && !error && batches.length === 0 && <EmptyBox message="No batches found." />}
+      {!isLoading && !error && batches.length === 0 && (
+        <EmptyBox
+          message={
+            query ? `No batches found matching "${query}".` : `No batches found on page ${page}.`
+          }
+        />
+      )}
 
-      {!isLoading && !error && batches.length > 0 && (
-        <div className="mb-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-          <span>
-            Showing{" "}
-            <strong className="font-semibold text-slate-800 dark:text-slate-200">
-              {batches.length}
-            </strong>{" "}
-            batches
+      {!isLoading && !error && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-2">
+            <span>
+              Showing{" "}
+              <strong className="font-semibold text-slate-800 dark:text-slate-200">
+                {batches.length}
+              </strong>{" "}
+              batches on{" "}
+              <span className="font-bold text-sky-600 dark:text-sky-400">Page {page}</span>
+              {totalCount ? ` (of ~${totalCount} total)` : ""}
+            </span>
+            {isFetching && (
+              <span className="inline-flex items-center text-[11px] text-sky-500 animate-pulse">
+                Updating…
+              </span>
+            )}
+          </div>
+
+          <span className="text-[11px] bg-sky-50 dark:bg-slate-800 px-2.5 py-1 rounded-md text-sky-700 dark:text-sky-300 font-medium">
+            Limit: 50 batches / page
           </span>
         </div>
       )}
@@ -185,6 +266,93 @@ function BatchesPage() {
           </Link>
         ))}
       </div>
+
+      {/* Pagination Bar */}
+      {!isLoading && !error && (
+        <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-sky-100/80 dark:border-slate-800 pt-6 sm:flex-row">
+          {/* Previous & Next Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => goToPage(1)}
+              disabled={page <= 1}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 transition hover:bg-sky-50 dark:hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-40"
+              title="First Page"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-sky-50 dark:hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-40 cursor-pointer"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span>Previous</span>
+            </button>
+          </div>
+
+          {/* Numbered Page Selectors */}
+          <div className="flex items-center gap-1.5">
+            {pageNumbers.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => goToPage(p)}
+                className={`inline-flex h-9 min-w-9 items-center justify-center rounded-xl px-2.5 text-xs font-bold transition cursor-pointer ${
+                  p === page
+                    ? "bg-sky-600 text-white shadow-sm shadow-sky-500/30"
+                    : "border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-slate-800"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+
+          {/* Next Page and Jump form */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => goToPage(page + 1)}
+              disabled={!hasMore && page >= totalPages}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-sky-50 dark:hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-40 cursor-pointer"
+            >
+              <span>Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            {totalPages > 0 && page < totalPages && (
+              <button
+                type="button"
+                onClick={() => goToPage(totalPages)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 transition hover:bg-sky-50 dark:hover:bg-slate-800"
+                title="Last Page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Quick Page Jump Input */}
+            <form onSubmit={handleJumpSubmit} className="flex items-center gap-1 ml-2">
+              <input
+                type="number"
+                min={1}
+                max={totalPages || 99}
+                value={jumpPageInput}
+                onChange={(e) => setJumpPageInput(e.target.value)}
+                placeholder="Go to"
+                className="w-14 rounded-xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1.5 text-center text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="rounded-xl border border-sky-200 dark:border-slate-700 bg-sky-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-sky-700 dark:text-sky-300 hover:bg-sky-100 transition cursor-pointer"
+              >
+                Go
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }
