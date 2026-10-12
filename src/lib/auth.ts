@@ -21,6 +21,14 @@ export type AuthState = {
   isAuthenticated: boolean;
   user: AuthUser | null;
   isAdmin: boolean;
+  isMounted: boolean;
+};
+
+export const DEFAULT_AUTH_STATE: AuthState = {
+  isAuthenticated: false,
+  user: null,
+  isAdmin: false,
+  isMounted: false,
 };
 
 // 1 Year Cache Helper
@@ -44,7 +52,7 @@ function removeCookie(name: string) {
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
 }
 
-export function getStoredAuthState(): AuthState {
+export function getStoredAuthState(): Omit<AuthState, "isMounted"> {
   if (typeof window === "undefined") {
     return { isAuthenticated: false, user: null, isAdmin: false };
   }
@@ -160,11 +168,14 @@ export function checkIsAuthenticated(): boolean {
 }
 
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>(getStoredAuthState);
+  const [authState, setAuthState] = useState<AuthState>(DEFAULT_AUTH_STATE);
 
   useEffect(() => {
+    // Sync on client mount to eliminate hydration mismatch
+    setAuthState({ ...getStoredAuthState(), isMounted: true });
+
     const sync = () => {
-      setAuthState(getStoredAuthState());
+      setAuthState({ ...getStoredAuthState(), isMounted: true });
     };
 
     window.addEventListener(EVENT_AUTH_CHANGED, sync);

@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 export function Shell({ children }: { children: ReactNode }) {
   const { isDark, toggleTheme } = useTheme();
   const { enrolledCount } = useEnrolledBatches();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isMounted } = useAuth();
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-sky-100 selection:text-sky-900 dark:selection:bg-sky-900 dark:selection:text-sky-100 transition-colors duration-200">
@@ -52,7 +52,9 @@ export function Shell({ children }: { children: ReactNode }) {
             </Link>
 
             {/* Auth Sign In / User Status */}
-            {isAuthenticated ? (
+            {!isMounted ? (
+              <div className="h-8 w-16" />
+            ) : isAuthenticated ? (
               <div className="flex items-center gap-1.5 pl-1 border-l border-slate-200 dark:border-slate-800">
                 <div className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
                   <User className="h-3 w-3 text-sky-600 dark:text-sky-400" />

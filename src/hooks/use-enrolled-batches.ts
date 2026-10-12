@@ -27,9 +27,13 @@ function saveEnrolledIds(ids: string[]) {
 }
 
 export function useEnrolledBatches() {
-  const [enrolledIds, setEnrolledIds] = useState<string[]>(getStoredEnrolledIds);
+  const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setEnrolledIds(getStoredEnrolledIds());
+    setIsMounted(true);
+
     const update = () => {
       setEnrolledIds(getStoredEnrolledIds());
     };
@@ -45,9 +49,10 @@ export function useEnrolledBatches() {
 
   const isEnrolled = useCallback(
     (batchId: string) => {
+      if (!isMounted) return false;
       return enrolledIds.includes(batchId);
     },
-    [enrolledIds],
+    [enrolledIds, isMounted],
   );
 
   const enroll = useCallback((batchId: string, batchName?: string) => {

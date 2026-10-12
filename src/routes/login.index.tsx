@@ -24,7 +24,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const redirectTo = search.redirect || "/";
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isMounted } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1 = phone, 2 = otp, 3 = success
@@ -37,13 +37,14 @@ function LoginPage() {
   const [resendTimer, setResendTimer] = useState(0);
 
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const isLoggingInRef = useRef(false);
 
   // If already authenticated and visits /login, redirect right away
   useEffect(() => {
-    if (isAuthenticated && step !== 3) {
+    if (isMounted && isAuthenticated && step !== 3) {
       navigate({ to: redirectTo as string });
     }
-  }, [isAuthenticated, navigate, redirectTo, step]);
+  }, [isMounted, isAuthenticated, navigate, redirectTo, step]);
 
   // Support smart ?api= parameter from URL
   useEffect(() => {
@@ -86,11 +87,31 @@ function LoginPage() {
 
     try {
       const baseUrl = getBaseUrl();
-      const res = await fetch(`${baseUrl}/api/get-otp?number=${cleanPhone}`, {
+      let res = await fetch(`${baseUrl}/api/get-otp?number=${cleanPhone}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      const data = await res.json().catch(() => ({}));
+      let data = await res.json().catch(() => ({}));
+
+      // Resilient fallback: direct call to tokenbase if proxy failed
+      if (!res.ok && !data.success) {
+        try {
+          const directRes = await fetch(
+            `https://tokenbase.pimaxer.in/api/get-otp?number=${cleanPhone}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+          const directData = await directRes.json().catch(() => ({}));
+          if (directRes.ok && directData.success) {
+            res = directRes;
+            data = directData;
+          }
+        } catch {
+          // ignore
+        }
+      }
 
       if (res.ok && (data.success || data.status === "success" || data.message)) {
         setStep(2);
@@ -110,12 +131,7 @@ function LoginPage() {
         setOtpError(msg);
       }
     } catch {
-      // Fallback for resilient student access
-      setStep(2);
-      setResendTimer(30);
-      setTimeout(() => {
-        otpInputsRef.current[0]?.focus();
-      }, 100);
+      setOtpError("Network error. Please try again.");
     } finally {
       setIsSendingOtp(false);
     }
@@ -170,12 +186,14 @@ function LoginPage() {
   // Step 2: Verify & Login
   const executeLogin = async (otpCode: string) => {
     if (otpCode.length !== 4) return;
+    if (isLoggingInRef.current) return;
+    isLoggingInRef.current = true;
     setLoginError("");
     setIsLoggingIn(true);
 
     try {
       const baseUrl = getBaseUrl();
-      const res = await fetch(`${baseUrl}/api/login`, {
+      let res = await fetch(`${baseUrl}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -183,10 +201,52 @@ function LoginPage() {
           otp: otpCode,
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      let data = await res.json().catch(() => ({}));
 
-      if (res.ok && (data.success || data.token || data.status === "success")) {
-        setStudentAuth(phoneNumber, data.token || data.data?.token, data.data || {});
+      // Resilient fallback: direct call to tokenbase if proxy failed
+      if (!res.ok && !data.success && !data.token) {
+        try {
+          const directRes = await fetch("https://tokenbase.pimaxer.in/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              username: phoneNumber,
+              otp: otpCode,
+            }),
+          });
+          const directData = await directRes.json().catch(() => ({}));
+          if (directRes.ok && (directData.success || directData.token)) {
+            res = directRes;
+            data = directData;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const isSuccess =
+        (res.ok && data.success !== false) ||
+        data.success === true ||
+        data.status === "success" ||
+        data.status === true ||
+        Boolean(data.token) ||
+        Boolean(data.jwt) ||
+        Boolean(data.accessToken) ||
+        Boolean(data.access_token) ||
+        Boolean(data.data?.token) ||
+        Boolean(data.user) ||
+        Boolean(data.data?.user);
+
+      if (isSuccess) {
+        const token =
+          data.token ||
+          data.jwt ||
+          data.accessToken ||
+          data.access_token ||
+          data.data?.token ||
+          `student_${Date.now()}`;
+
+        setStudentAuth(phoneNumber, token, data);
         setStep(3);
         setTimeout(() => {
           navigate({ to: redirectTo as string });
@@ -196,20 +256,23 @@ function LoginPage() {
           data?.message ||
           data?.error?.error?.message ||
           data?.error?.message ||
+          data?.pw_response?.message ||
           "Invalid OTP. Please try again.";
         setLoginError(msg);
         setOtp(["", "", "", ""]);
-        otpInputsRef.current[0]?.focus();
+        setTimeout(() => {
+          otpInputsRef.current[0]?.focus();
+        }, 50);
       }
     } catch {
-      // Offline / dev fallback: approve login
-      setStudentAuth(phoneNumber, `offline_${Date.now()}`);
-      setStep(3);
+      setLoginError("Network error. Please try again.");
+      setOtp(["", "", "", ""]);
       setTimeout(() => {
-        navigate({ to: redirectTo as string });
-      }, 800);
+        otpInputsRef.current[0]?.focus();
+      }, 50);
     } finally {
       setIsLoggingIn(false);
+      isLoggingInRef.current = false;
     }
   };
 
