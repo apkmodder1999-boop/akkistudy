@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { GraduationCap, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { type ReactNode } from "react";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -7,43 +7,45 @@ export function Shell({ children }: { children: ReactNode }) {
   const { isDark, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen bg-background text-foreground antialiased selection:bg-sky-100 selection:text-sky-900 dark:selection:bg-sky-900 dark:selection:text-sky-100 transition-colors duration-200">
-      <header className="sticky top-0 z-30 border-b border-sky-100/80 dark:border-slate-800/80 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md transition-all">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link to="/" className="group flex items-center gap-2.5 transition">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 text-white shadow-sm shadow-sky-500/25 transition group-hover:scale-105">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-base font-extrabold tracking-tight text-slate-900 dark:text-slate-100 group-hover:text-primary transition">
-                Akki Study
-              </span>
-              <span className="text-[10px] font-medium tracking-wide text-sky-600 dark:text-sky-400 -mt-0.5">
-                Free Lectures & Notes
-              </span>
-            </div>
-          </Link>
+    <div className="min-h-screen bg-white dark:bg-zinc-950 text-foreground antialiased font-['Inter',sans-serif] selection:bg-orange-100 selection:text-orange-900 transition-colors duration-200">
+      {/* PhysicsWallah signature top dark navigation bar */}
+      <header className="sticky top-0 z-40 bg-neutral-800 text-white border-b border-neutral-700 shadow-xs">
+        <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-3 sm:px-6">
+          {/* Left: Brand */}
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="h-6 w-7 rounded bg-black outline outline-2 outline-offset-[-0.90px] outline-gray-50 flex items-center justify-center font-black text-[11px] text-white">
+                PW
+              </div>
+              <span className="font-bold text-sm tracking-tight text-white">Akki Study</span>
+            </Link>
+          </div>
 
-          <nav className="flex items-center gap-2">
-            {/* Dark Mode Toggle */}
+          {/* Right: User Avatar + Theme Toggle */}
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={toggleTheme}
-              className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white cursor-pointer shadow-2xs"
+              className="size-8 rounded-lg border border-neutral-700 bg-zinc-800 text-neutral-300 hover:text-white flex items-center justify-center cursor-pointer transition"
               title={isDark ? "Switch to light mode" : "Switch to dark mode"}
               aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             >
               {isDark ? (
-                <Sun className="h-4 w-4 text-amber-400 transition-transform duration-200 rotate-0 scale-100" />
+                <Sun className="h-4 w-4 text-amber-400" />
               ) : (
-                <Moon className="h-4 w-4 text-slate-600 transition-transform duration-200 rotate-0 scale-100" />
+                <Moon className="h-4 w-4 text-slate-300" />
               )}
             </button>
-          </nav>
+
+            {/* User Avatar Circle from snippet */}
+            <div className="size-8 rounded-full bg-violet-100 text-slate-800 font-bold text-xs flex items-center justify-center border border-violet-200">
+              S
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-20 pt-6 sm:px-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-3 sm:px-6 pb-20 pt-2">{children}</main>
     </div>
   );
 }

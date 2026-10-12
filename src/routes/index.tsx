@@ -183,86 +183,68 @@ function BatchesPage() {
   return (
     <RequireAuth>
       <Shell>
-        <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
-          <span>Batches</span>
-        </div>
-        <PageTitle
-          title={activeTab === "enrolled" ? "My Enrolled Batches" : "Popular Courses"}
-          subtitle={
-            activeTab === "enrolled"
-              ? "Your active enrolled study batches, ready for video lectures, chapter notes and DPPs."
-              : "Explore high-definition video lectures, chapter notes, and daily practice problem sheets."
-          }
-        />
+        {/* PW Subheader: "Batches" and Section Tabs */}
+        <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-zinc-800">
+          <div className="flex items-center gap-1.5 text-neutral-700 dark:text-neutral-300 text-sm font-normal font-['Inter']">
+            <span>Batches</span>
+          </div>
 
-        {/* Primary Section Tabs: All Batches vs Enrolled Batches */}
-        <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-sky-100/80 dark:border-slate-800 pb-3">
-          <button
-            type="button"
-            onClick={() => switchTab("all")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
-              activeTab === "all"
-                ? "bg-sky-600 text-white shadow-sm shadow-sky-500/25"
-                : "bg-white dark:bg-slate-900 border border-sky-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
-            }`}
-          >
-            <GraduationCap className="h-4 w-4" />
-            <span>All Batches</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => switchTab("all")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
                 activeTab === "all"
-                  ? "bg-white/20 text-white"
-                  : "bg-sky-50 dark:bg-slate-800 text-sky-700 dark:text-sky-300"
+                  ? "bg-neutral-800 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  : "bg-stone-100 dark:bg-zinc-800 text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white"
               }`}
             >
-              {allBatches.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab("enrolled")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
-              activeTab === "enrolled"
-                ? "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25"
-                : "bg-white dark:bg-slate-900 border border-sky-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300"
-            }`}
-          >
-            <BookmarkCheck className="h-4 w-4" />
-            <span>My Enrolled Batches</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+              All Courses ({allBatches.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => switchTab("enrolled")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
                 activeTab === "enrolled"
-                  ? "bg-white/20 text-white"
-                  : "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                  ? "bg-neutral-800 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  : "bg-stone-100 dark:bg-zinc-800 text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white"
               }`}
             >
-              {enrolledBatches.length}
-            </span>
-          </button>
+              Enrolled ({enrolledBatches.length})
+            </button>
+          </div>
         </div>
 
-        {/* Global Search Bar with Clear Button */}
-        <div className="relative mb-6">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+        {/* Section Heading: "Popular Courses" */}
+        <div className="pt-4 pb-3 flex items-center justify-between">
+          <h1 className="text-neutral-800 dark:text-neutral-100 text-xl font-bold font-['Inter']">
+            {activeTab === "enrolled" ? "My Enrolled Batches" : "Popular Courses"}
+          </h1>
+          <span className="text-xs text-neutral-400 font-medium font-['Inter']">
+            {targetBatches.length} courses
+          </span>
+        </div>
+
+        {/* Global Search Bar */}
+        <div className="relative mb-5">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={
               activeTab === "enrolled"
-                ? "Search within your enrolled batches…"
-                : "Search batches by name, class, faculty…"
+                ? "Search your enrolled batches…"
+                : "Search popular courses by name, faculty, target…"
             }
-            className="w-full rounded-2xl border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 py-3.5 pl-11 pr-10 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm transition hover:border-sky-200 dark:hover:border-slate-700 focus:border-sky-400 dark:focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-4 focus:ring-sky-100 dark:focus:ring-sky-950/50"
+            className="w-full rounded-xl border border-gray-300 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 pl-10 pr-10 text-xs sm:text-sm text-zinc-800 dark:text-zinc-100 placeholder:text-neutral-400 focus:border-neutral-700 dark:focus:border-zinc-500 focus:outline-none"
           />
           {q && (
             <button
               type="button"
               onClick={() => setQ("")}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-              title="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-neutral-400 hover:text-neutral-700"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
@@ -470,19 +452,19 @@ function BatchesPage() {
                       <Link
                         to="/batches/$batchId"
                         params={{ batchId: b._id }}
-                        className="bg-neutral-800 hover:bg-neutral-900 dark:bg-sky-600 dark:hover:bg-sky-500 text-white font-bold text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5"
+                        className="w-28 h-11 bg-neutral-800 hover:bg-neutral-900 dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-white font-bold text-sm rounded-lg shadow-xs transition flex items-center justify-center cursor-pointer font-['Inter']"
                       >
-                        <span>{enrolled ? "Study Now" : "Explore"}</span>
+                        <span>{enrolled ? "Study Now" : "Buy Now"}</span>
                       </Link>
 
                       <button
                         type="button"
                         onClick={() => toggleEnroll(b._id, b.name)}
                         title={enrolled ? "Unenroll batch" : "Enroll batch"}
-                        className={`w-11 h-11 rounded-xl border flex items-center justify-center transition cursor-pointer ${
+                        className={`w-12 h-11 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                           enrolled
                             ? "border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400"
-                            : "border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-750 text-neutral-700 dark:text-neutral-300"
+                            : "border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-stone-50 dark:hover:bg-zinc-750 text-neutral-700 dark:text-neutral-300"
                         }`}
                       >
                         {enrolled ? (
