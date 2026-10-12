@@ -1,20 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
 
-const AUTH_KEY = "akki_student_auth_cache_v2";
-const BYPASS_KEY = "akki_admin_bypass_cache_v2";
-const LEGACY_AUTH_KEY = "akki_student_auth_v1";
-const LEGACY_BYPASS_KEY = "akki_admin_bypass_v1";
-const EVENT_AUTH_CHANGED = "akki-auth-changed";
+const COOKIE_SESSION = "akki_session";
+const COOKIE_BYPASS = "akki_bypass";
+const COOKIE_LOGGED_IN = "akki_logged_in";
+const COOKIE_TOKEN = "akki_token";
+const COOKIE_PHONE = "akki_phone";
 
-const COOKIE_AUTH = "akki_auth_session";
-const COOKIE_BYPASS = "akki_bypass_session";
+const STORAGE_SESSION = "akki_session";
+const STORAGE_BYPASS = "akki_bypass";
+const STORAGE_USER = "akki_student_auth_cache_v2";
+
+const EVENT_AUTH_CHANGED = "akki-auth-changed";
 
 export type AuthUser = {
   phone: string;
   token?: string;
   role?: string;
   name?: string;
-  cachedAt?: number;
 };
 
 export type AuthState = {
@@ -31,15 +33,35 @@ export const DEFAULT_AUTH_STATE: AuthState = {
   isMounted: false,
 };
 
-// 1 Year Cache Helper
-function setCookie(name: string, value: string) {
+// Helper to write long-lived cookies (10 years)
+function writeCookie(name: string, value: string) {
   if (typeof document === "undefined") return;
-  const expires = new Date();
-  expires.setFullYear(expires.getFullYear() + 1); // 1 year persistent session cache
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+  const maxAge = 315360000; // 10 years
+  const expires = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toUTCString();
+
+  try {
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; expires=${expires}; SameSite=Lax`;
+    if (typeof location !== "undefined" && location.protocol === "https:") {
+      document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; expires=${expires}; SameSite=None; Secure`;
+    }
+  } catch (_e) {
+    void _e;
+  }
 }
 
-function getCookie(name: string): string | null {
+function clearCookie(name: string) {
+  if (typeof document === "undefined") return;
+  try {
+    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    if (typeof location !== "undefined" && location.protocol === "https:") {
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure`;
+    }
+  } catch (_e) {
+    void _e;
+  }
+}
+
+function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   const matches = document.cookie.match(
     new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)"),
@@ -47,9 +69,38 @@ function getCookie(name: string): string | null {
   return matches ? decodeURIComponent(matches[1]) : null;
 }
 
-function removeCookie(name: string) {
-  if (typeof document === "undefined") return;
-  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+export function checkIsAuthenticated(): boolean {
+  if (typeof window === "undefined") return false;
+
+  try {
+    // 1. Check cookies
+    const cookieStr = typeof document !== "undefined" ? document.cookie : "";
+    if (
+      cookieStr.includes(`${COOKIE_SESSION}=authenticated`) ||
+      cookieStr.includes(`${COOKIE_BYPASS}=true`) ||
+      cookieStr.includes(`${COOKIE_LOGGED_IN}=true`) ||
+      cookieStr.includes("akki_auth_session") ||
+      cookieStr.includes("akki_bypass_session")
+    ) {
+      return true;
+    }
+
+    // 2. Check localStorage / sessionStorage
+    if (
+      localStorage.getItem(STORAGE_SESSION) === "authenticated" ||
+      localStorage.getItem(STORAGE_BYPASS) === "true" ||
+      localStorage.getItem("akki_admin_bypass_cache_v2") === "true" ||
+      localStorage.getItem("akki_admin_bypass_v1") === "true" ||
+      Boolean(localStorage.getItem(STORAGE_USER)) ||
+      Boolean(localStorage.getItem("akki_student_auth_v1"))
+    ) {
+      return true;
+    }
+  } catch (_e) {
+    void _e;
+  }
+
+  return false;
 }
 
 export function getStoredAuthState(): Omit<AuthState, "isMounted"> {
@@ -58,12 +109,15 @@ export function getStoredAuthState(): Omit<AuthState, "isMounted"> {
   }
 
   try {
-    // 1. Check Admin Bypass in localStorage, sessionStorage, or Cookie
+    const cookieStr = typeof document !== "undefined" ? document.cookie : "";
+
+    // 1. Check Admin Bypass
     const isBypass =
-      localStorage.getItem(BYPASS_KEY) === "true" ||
-      localStorage.getItem(LEGACY_BYPASS_KEY) === "true" ||
-      sessionStorage.getItem(BYPASS_KEY) === "true" ||
-      getCookie(COOKIE_BYPASS) === "true";
+      cookieStr.includes(`${COOKIE_BYPASS}=true`) ||
+      cookieStr.includes("akki_bypass_session") ||
+      localStorage.getItem(STORAGE_BYPASS) === "true" ||
+      localStorage.getItem("akki_admin_bypass_cache_v2") === "true" ||
+      localStorage.getItem("akki_admin_bypass_v1") === "true";
 
     if (isBypass) {
       return {
@@ -73,22 +127,27 @@ export function getStoredAuthState(): Omit<AuthState, "isMounted"> {
       };
     }
 
-    // 2. Check Student Auth in localStorage, sessionStorage, or Cookie
-    const raw =
-      localStorage.getItem(AUTH_KEY) ||
-      localStorage.getItem(LEGACY_AUTH_KEY) ||
-      sessionStorage.getItem(AUTH_KEY) ||
-      getCookie(COOKIE_AUTH);
-
-    if (raw) {
-      const parsed = typeof raw === "string" && raw.startsWith("{") ? JSON.parse(raw) : null;
-      if (parsed && (parsed.phone || parsed.token || parsed.isAuthenticated)) {
-        return {
-          isAuthenticated: true,
-          isAdmin: false,
-          user: parsed,
-        };
+    // 2. Check Student Session
+    if (checkIsAuthenticated()) {
+      let userData: AuthUser = { phone: "Student", role: "student" };
+      try {
+        const raw =
+          localStorage.getItem(STORAGE_USER) || localStorage.getItem("akki_student_auth_v1");
+        if (raw && raw.startsWith("{")) {
+          userData = JSON.parse(raw);
+        } else {
+          const cookiePhone = readCookie(COOKIE_PHONE);
+          if (cookiePhone) userData.phone = cookiePhone;
+        }
+      } catch (_e) {
+        void _e;
       }
+
+      return {
+        isAuthenticated: true,
+        isAdmin: false,
+        user: userData,
+      };
     }
   } catch (e) {
     console.error("Auth state read error:", e);
@@ -99,28 +158,35 @@ export function getStoredAuthState(): Omit<AuthState, "isMounted"> {
 
 export function setStudentAuth(phone: string, token?: string, extra?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
+
+  const userToken = token || `student_${Date.now()}`;
   const data: AuthUser = {
     phone,
-    token: token || `student_${Date.now()}`,
+    token: userToken,
     role: "student",
-    cachedAt: Date.now(),
     ...extra,
   };
 
   const serialized = JSON.stringify(data);
 
-  // Cache in multiple persistent stores so session doesn't expire or get lost
-  try {
-    localStorage.setItem(AUTH_KEY, serialized);
-    sessionStorage.setItem(AUTH_KEY, serialized);
-    localStorage.removeItem(BYPASS_KEY);
-    sessionStorage.removeItem(BYPASS_KEY);
-  } catch (e) {
-    console.warn("Storage write error:", e);
-  }
+  // 1. Write long-lived browser cookies (10 years)
+  writeCookie(COOKIE_SESSION, "authenticated");
+  writeCookie(COOKIE_LOGGED_IN, "true");
+  writeCookie(COOKIE_PHONE, phone);
+  writeCookie(COOKIE_TOKEN, userToken);
+  clearCookie(COOKIE_BYPASS);
 
-  setCookie(COOKIE_AUTH, serialized);
-  removeCookie(COOKIE_BYPASS);
+  // 2. Write localStorage & sessionStorage
+  try {
+    localStorage.setItem(STORAGE_SESSION, "authenticated");
+    localStorage.setItem(STORAGE_USER, serialized);
+    localStorage.removeItem(STORAGE_BYPASS);
+    sessionStorage.setItem(STORAGE_SESSION, "authenticated");
+    sessionStorage.setItem(STORAGE_USER, serialized);
+    sessionStorage.removeItem(STORAGE_BYPASS);
+  } catch (_e) {
+    void _e;
+  }
 
   window.dispatchEvent(new Event(EVENT_AUTH_CHANGED));
 }
@@ -128,50 +194,58 @@ export function setStudentAuth(phone: string, token?: string, extra?: Record<str
 export function setAdminBypassAuth() {
   if (typeof window === "undefined") return;
 
-  // Cache bypass flag in localStorage, sessionStorage and 1-year Cookie
-  try {
-    localStorage.setItem(BYPASS_KEY, "true");
-    sessionStorage.setItem(BYPASS_KEY, "true");
-    localStorage.removeItem(AUTH_KEY);
-    sessionStorage.removeItem(AUTH_KEY);
-  } catch (e) {
-    console.warn("Storage write error:", e);
-  }
+  // 1. Write cookies
+  writeCookie(COOKIE_SESSION, "authenticated");
+  writeCookie(COOKIE_BYPASS, "true");
+  writeCookie(COOKIE_LOGGED_IN, "true");
 
-  setCookie(COOKIE_BYPASS, "true");
-  removeCookie(COOKIE_AUTH);
+  // 2. Write storage
+  try {
+    localStorage.setItem(STORAGE_SESSION, "authenticated");
+    localStorage.setItem(STORAGE_BYPASS, "true");
+    sessionStorage.setItem(STORAGE_SESSION, "authenticated");
+    sessionStorage.setItem(STORAGE_BYPASS, "true");
+  } catch (_e) {
+    void _e;
+  }
 
   window.dispatchEvent(new Event(EVENT_AUTH_CHANGED));
 }
 
 export function clearAuth() {
   if (typeof window === "undefined") return;
+
+  // Clear all cookies
+  clearCookie(COOKIE_SESSION);
+  clearCookie(COOKIE_BYPASS);
+  clearCookie(COOKIE_LOGGED_IN);
+  clearCookie(COOKIE_TOKEN);
+  clearCookie(COOKIE_PHONE);
+  clearCookie("akki_auth_session");
+  clearCookie("akki_bypass_session");
+
+  // Clear storage
   try {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem(BYPASS_KEY);
-    localStorage.removeItem(LEGACY_AUTH_KEY);
-    localStorage.removeItem(LEGACY_BYPASS_KEY);
-    sessionStorage.removeItem(AUTH_KEY);
-    sessionStorage.removeItem(BYPASS_KEY);
-  } catch (e) {
-    console.warn("Storage clear error:", e);
+    localStorage.removeItem(STORAGE_SESSION);
+    localStorage.removeItem(STORAGE_BYPASS);
+    localStorage.removeItem(STORAGE_USER);
+    localStorage.removeItem("akki_student_auth_cache_v2");
+    localStorage.removeItem("akki_admin_bypass_cache_v2");
+    localStorage.removeItem("akki_student_auth_v1");
+    localStorage.removeItem("akki_admin_bypass_v1");
+    sessionStorage.clear();
+  } catch (_e) {
+    void _e;
   }
 
-  removeCookie(COOKIE_AUTH);
-  removeCookie(COOKIE_BYPASS);
-
   window.dispatchEvent(new Event(EVENT_AUTH_CHANGED));
-}
-
-export function checkIsAuthenticated(): boolean {
-  return getStoredAuthState().isAuthenticated;
 }
 
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>(DEFAULT_AUTH_STATE);
 
   useEffect(() => {
-    // Sync on client mount to eliminate hydration mismatch
+    // Sync immediately on client mount
     setAuthState({ ...getStoredAuthState(), isMounted: true });
 
     const sync = () => {

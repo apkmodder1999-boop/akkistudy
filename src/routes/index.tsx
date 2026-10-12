@@ -26,10 +26,10 @@ const PAGE_SIZE = 50;
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => {
     const raw = Number(search["page"]);
-    const tab = search["tab"] === "enrolled" ? "enrolled" : "all";
+    const tab = search["tab"] === "enrolled" ? "enrolled" : undefined;
     return {
-      page: !isNaN(raw) && raw > 0 ? Math.floor(raw) : 1,
-      tab: tab as "all" | "enrolled",
+      page: !isNaN(raw) && raw > 1 ? Math.floor(raw) : undefined,
+      tab: tab as "enrolled" | undefined,
     };
   },
   head: () => ({

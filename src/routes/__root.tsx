@@ -13,37 +13,6 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
-import { getStoredAuthState } from "@/lib/auth";
-
-function GlobalAuthGuard() {
-  const router = useRouter();
-  const currentPath = router.state.location.pathname;
-
-  useEffect(() => {
-    // Only /login and /login/admin are public bypass routes
-    if (
-      currentPath === "/login" ||
-      currentPath === "/login/" ||
-      currentPath === "/login/admin" ||
-      currentPath === "/login/admin/" ||
-      currentPath.startsWith("/login")
-    ) {
-      return;
-    }
-
-    const state = getStoredAuthState();
-    if (!state.isAuthenticated) {
-      const redirect =
-        typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
-      router.navigate({
-        to: "/login",
-        search: { redirect },
-      });
-    }
-  }, [currentPath, router]);
-
-  return null;
-}
 
 function NotFoundComponent() {
   return (
@@ -168,7 +137,6 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <GlobalAuthGuard />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster richColors position="bottom-right" closeButton />

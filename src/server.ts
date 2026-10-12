@@ -148,12 +148,30 @@ async function handleApiAuth(request: Request, env: unknown): Promise<Response |
       });
 
       const data = await res.text();
+      const responseHeaders = new Headers();
+      responseHeaders.set("content-type", "application/json");
+      responseHeaders.set("access-control-allow-origin", "*");
+
+      if (res.status === 200) {
+        responseHeaders.append(
+          "Set-Cookie",
+          "akki_session=authenticated; Path=/; Max-Age=315360000; SameSite=Lax",
+        );
+        responseHeaders.append(
+          "Set-Cookie",
+          "akki_logged_in=true; Path=/; Max-Age=315360000; SameSite=Lax",
+        );
+        if (username) {
+          responseHeaders.append(
+            "Set-Cookie",
+            `akki_phone=${encodeURIComponent(username)}; Path=/; Max-Age=315360000; SameSite=Lax`,
+          );
+        }
+      }
+
       return new Response(data, {
         status: res.status,
-        headers: {
-          "content-type": "application/json",
-          "access-control-allow-origin": "*",
-        },
+        headers: responseHeaders,
       });
     } catch (e) {
       console.error("Upstream login error:", e);
