@@ -17,6 +17,7 @@ import {
 } from "@/lib/api";
 import { Shell, Crumbs, ErrorBox } from "@/components/shell";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RequireAuth } from "@/components/RequireAuth";
 
 export const Route = createFileRoute(
   "/batches/$batchId/subject/$subjectId/topic/$topicId/lecture/$lectureId",
@@ -127,81 +128,83 @@ function LecturePage() {
   };
 
   return (
-    <Shell>
-      <Crumbs
-        items={[
-          {
-            label: "Batches",
-            to: (
-              <Link to="/" className="hover:text-foreground">
-                Batches
-              </Link>
-            ),
-          },
-          {
-            label: "Chapter",
-            to: (
-              <Link
-                to="/batches/$batchId/subject/$subjectId/topic/$topicId"
-                params={{ batchId, subjectId, topicId }}
-                search={{ name: undefined, slug: undefined }}
-                className="hover:text-foreground"
-              >
-                Chapter
-              </Link>
-            ),
-          },
-          { label: "Lecture" },
-        ]}
-      />
-
-      {isOverallLoading && (
-        <div className="card-surface aspect-video w-full flex flex-col items-center justify-center gap-3 bg-white dark:bg-slate-900 border border-sky-100 dark:border-slate-800 p-8 text-center rounded-2xl shadow-sm">
-          <Loader2 className="h-9 w-9 animate-spin text-sky-600 dark:text-sky-400" />
-          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Loading lecture…</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-            Please wait while the video stream is initialized
-          </p>
-        </div>
-      )}
-
-      {itemError && <ErrorBox message={(itemError as Error).message} />}
-
-      {!isOverallLoading && (
-        <LecturePlayerView
-          item={itemData ?? { _id: lectureId }}
-          videoData={videoData}
-          batchId={batchId}
-          subjectId={subjectId}
-          topicId={topicId}
-          lectureId={lectureId}
-          onPreviewPdf={handlePreviewPdf}
+    <RequireAuth>
+      <Shell>
+        <Crumbs
+          items={[
+            {
+              label: "Batches",
+              to: (
+                <Link to="/" className="hover:text-foreground">
+                  Batches
+                </Link>
+              ),
+            },
+            {
+              label: "Chapter",
+              to: (
+                <Link
+                  to="/batches/$batchId/subject/$subjectId/topic/$topicId"
+                  params={{ batchId, subjectId, topicId }}
+                  search={{ name: undefined, slug: undefined }}
+                  className="hover:text-foreground"
+                >
+                  Chapter
+                </Link>
+              ),
+            },
+            { label: "Lecture" },
+          ]}
         />
-      )}
 
-      {/* In-App PDF Preview Dialog */}
-      <Dialog open={Boolean(previewPdf)} onOpenChange={(open) => !open && setPreviewPdf(null)}>
-        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-          <DialogHeader className="flex flex-row items-center justify-between pb-3 border-b border-border dark:border-slate-800">
-            <div>
-              <DialogTitle className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate">
-                {previewPdf?.name}
-              </DialogTitle>
-              <p className="text-[11px] text-muted-foreground mt-0.5">In-app document viewer</p>
-            </div>
-          </DialogHeader>
-          <div className="flex-1 w-full h-full min-h-0 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-hidden border border-border dark:border-slate-800">
-            {previewPdf && (
-              <iframe
-                src={previewPdf.url}
-                className="w-full h-full border-0"
-                title={previewPdf.name}
-              />
-            )}
+        {isOverallLoading && (
+          <div className="card-surface aspect-video w-full flex flex-col items-center justify-center gap-3 bg-white dark:bg-slate-900 border border-sky-100 dark:border-slate-800 p-8 text-center rounded-2xl shadow-sm">
+            <Loader2 className="h-9 w-9 animate-spin text-sky-600 dark:text-sky-400" />
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Loading lecture…</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+              Please wait while the video stream is initialized
+            </p>
           </div>
-        </DialogContent>
-      </Dialog>
-    </Shell>
+        )}
+
+        {itemError && <ErrorBox message={(itemError as Error).message} />}
+
+        {!isOverallLoading && (
+          <LecturePlayerView
+            item={itemData ?? { _id: lectureId }}
+            videoData={videoData}
+            batchId={batchId}
+            subjectId={subjectId}
+            topicId={topicId}
+            lectureId={lectureId}
+            onPreviewPdf={handlePreviewPdf}
+          />
+        )}
+
+        {/* In-App PDF Preview Dialog */}
+        <Dialog open={Boolean(previewPdf)} onOpenChange={(open) => !open && setPreviewPdf(null)}>
+          <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <DialogHeader className="flex flex-row items-center justify-between pb-3 border-b border-border dark:border-slate-800">
+              <div>
+                <DialogTitle className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate">
+                  {previewPdf?.name}
+                </DialogTitle>
+                <p className="text-[11px] text-muted-foreground mt-0.5">In-app document viewer</p>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 w-full h-full min-h-0 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-hidden border border-border dark:border-slate-800">
+              {previewPdf && (
+                <iframe
+                  src={previewPdf.url}
+                  className="w-full h-full border-0"
+                  title={previewPdf.name}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </Shell>
+    </RequireAuth>
   );
 }
 

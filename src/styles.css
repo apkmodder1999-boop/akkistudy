@@ -33,70 +33,82 @@
   --color-ring: var(--ring);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+
+  /* Official Physics Wallah (PW) Brand Tokens */
+  --color-pw-indigo: #5a4bda;
+  --color-pw-indigo-hover: #4a3cc4;
+  --color-pw-dark: #121624;
+  --color-pw-dark-card: #181d2e;
+  --color-pw-gold: #f59e0b;
 }
 
 :root {
-  --radius: 0.875rem;
-  /* Light Theme */
-  --background: #ffffff;
+  --radius: 0.75rem;
+  /* Light Theme (PW Official Web Styling) */
+  --background: #f8fafc;
   --foreground: #0f172a;
-  --surface: #f8fbff;
-  --surface-2: #f0f7ff;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #0284c7;
+  --primary: #5a4bda;
   --primary-foreground: #ffffff;
-  --secondary: #e0f2fe;
-  --secondary-foreground: #0369a1;
+  --secondary: #eef0fd;
+  --secondary-foreground: #4338ca;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  --accent: #e0f2fe;
-  --accent-foreground: #0284c7;
+  --accent: #eef0fd;
+  --accent-foreground: #5a4bda;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --success: #10b981;
   --border: #e2e8f0;
   --input: #e2e8f0;
-  --ring: #38bdf8;
-  --gradient-hero: radial-gradient(1400px 560px at 50% -40px, #f0f9ff 0%, #f8fbff 45%, #ffffff 85%);
-  --shadow-card: 0 2px 12px -2px rgba(186, 230, 253, 0.35), 0 1px 3px rgba(15, 23, 42, 0.02);
-  --shadow-glow: 0 0 0 1px rgba(14, 165, 233, 0.25), 0 10px 28px -10px rgba(14, 165, 233, 0.25);
+  --ring: #5a4bda;
+  --gradient-hero: radial-gradient(
+    1200px 500px at 50% -40px,
+    #eef0fd 0%,
+    #f8fafc 60%,
+    #ffffff 100%
+  );
+  --shadow-card: 0 2px 10px -2px rgba(90, 75, 218, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-glow: 0 0 0 1px rgba(90, 75, 218, 0.25), 0 8px 24px -8px rgba(90, 75, 218, 0.25);
 }
 
 .dark {
-  /* Dark Theme */
-  --background: #090d16;
+  /* Dark Theme (PW Dark Mode) */
+  --background: #0b0f19;
   --foreground: #f8fafc;
-  --surface: #0f172a;
-  --surface-2: #1e293b;
-  --card: #0f172a;
+  --surface: #121624;
+  --surface-2: #181d2e;
+  --card: #121624;
   --card-foreground: #f8fafc;
-  --popover: #0f172a;
+  --popover: #121624;
   --popover-foreground: #f8fafc;
-  --primary: #38bdf8;
-  --primary-foreground: #082f49;
-  --secondary: #1e293b;
-  --secondary-foreground: #7dd3fc;
-  --muted: #1e293b;
+  --primary: #7566f1;
+  --primary-foreground: #ffffff;
+  --secondary: #1e2438;
+  --secondary-foreground: #c7d2fe;
+  --muted: #1e2438;
   --muted-foreground: #94a3b8;
-  --accent: #1e293b;
-  --accent-foreground: #38bdf8;
+  --accent: #1e2438;
+  --accent-foreground: #7566f1;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --success: #10b981;
-  --border: #1e293b;
-  --input: #1e293b;
-  --ring: #38bdf8;
+  --border: #1e263d;
+  --input: #1e263d;
+  --ring: #7566f1;
   --gradient-hero: radial-gradient(
-    1400px 560px at 50% -40px,
-    #0c1a2e 0%,
-    #090d16 55%,
-    #050811 100%
+    1200px 500px at 50% -40px,
+    #181d2e 0%,
+    #0b0f19 60%,
+    #080b12 100%
   );
   --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.3), 0 10px 28px -10px rgba(56, 189, 248, 0.3);
+  --shadow-glow: 0 0 0 1px rgba(117, 102, 241, 0.3), 0 8px 24px -8px rgba(117, 102, 241, 0.3);
 }
 
 @layer base {

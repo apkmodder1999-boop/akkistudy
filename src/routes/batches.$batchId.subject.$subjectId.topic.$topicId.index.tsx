@@ -25,6 +25,7 @@ import {
 } from "@/lib/api";
 import { Shell, Crumbs, PageTitle, Loading, EmptyBox } from "@/components/shell";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RequireAuth } from "@/components/RequireAuth";
 
 const TABS: { key: ContentType; label: string }[] = [
   { key: "Videos", label: "Lectures" },
@@ -82,144 +83,146 @@ function TopicPage() {
   const items = data ?? [];
 
   return (
-    <Shell>
-      <Crumbs
-        items={[
-          {
-            label: "Batches",
-            to: (
-              <Link to="/" className="hover:text-foreground">
-                Batches
-              </Link>
-            ),
-          },
-          {
-            label: "Subject",
-            to: (
-              <Link
-                to="/batches/$batchId/subject/$subjectId"
-                params={{ batchId, subjectId }}
-                className="hover:text-foreground"
-              >
-                Subject
-              </Link>
-            ),
-          },
-          { label: name ?? "Chapter" },
-        ]}
-      />
-      <PageTitle title={name ?? "Chapter"} />
+    <RequireAuth>
+      <Shell>
+        <Crumbs
+          items={[
+            {
+              label: "Batches",
+              to: (
+                <Link to="/" className="hover:text-foreground">
+                  Batches
+                </Link>
+              ),
+            },
+            {
+              label: "Subject",
+              to: (
+                <Link
+                  to="/batches/$batchId/subject/$subjectId"
+                  params={{ batchId, subjectId }}
+                  className="hover:text-foreground"
+                >
+                  Subject
+                </Link>
+              ),
+            },
+            { label: name ?? "Chapter" },
+          ]}
+        />
+        <PageTitle title={name ?? "Chapter"} />
 
-      {/* Filter Tabs */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={
-              "rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer " +
-              (tab === t.key
-                ? "bg-sky-600 text-white shadow-sm shadow-sky-500/25"
-                : "border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-slate-800 hover:text-sky-700 dark:hover:text-sky-300")
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {isLoading && <Loading />}
-      {error && (
-        <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
-            <AlertCircle className="h-5 w-5" />
-          </div>
-          <h3 className="text-sm font-semibold text-foreground">
-            Upstream Server Session Expired (HTTP 401)
-          </h3>
-          <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-muted-foreground">
-            {(error as Error).message}
-          </p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        {/* Filter Tabs */}
+        <div className="mb-6 flex flex-wrap gap-2">
+          {TABS.map((t) => (
             <button
-              onClick={() => setIsApiModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-surface-2"
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={
+                "rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer " +
+                (tab === t.key
+                  ? "bg-sky-600 text-white shadow-sm shadow-sky-500/25"
+                  : "border border-sky-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-slate-800 hover:text-sky-700 dark:hover:text-sky-300")
+              }
             >
-              <Terminal className="h-3.5 w-3.5 text-primary" />
-              Inspect Endpoint & Response
+              {t.label}
             </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Retry
-            </button>
-          </div>
+          ))}
         </div>
-      )}
-      {!isLoading && !error && items.length === 0 && (
-        <EmptyBox message={`No ${tab.toLowerCase()} published for this chapter yet.`} />
-      )}
 
-      <div className="grid gap-3">
-        {items.map((item, i) => {
-          if (tab === "Videos") {
+        {isLoading && <Loading />}
+        {error && (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">
+              Upstream Server Session Expired (HTTP 401)
+            </h3>
+            <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-muted-foreground">
+              {(error as Error).message}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <button
+                onClick={() => setIsApiModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-surface-2"
+              >
+                <Terminal className="h-3.5 w-3.5 text-primary" />
+                Inspect Endpoint & Response
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+        {!isLoading && !error && items.length === 0 && (
+          <EmptyBox message={`No ${tab.toLowerCase()} published for this chapter yet.`} />
+        )}
+
+        <div className="grid gap-3">
+          {items.map((item, i) => {
+            if (tab === "Videos") {
+              return (
+                <VideoRow
+                  key={`${item._id}-${i}`}
+                  item={item}
+                  batchId={batchId}
+                  subjectId={subjectId}
+                  topicId={topicId}
+                />
+              );
+            }
+            if (tab === "Test") {
+              return (
+                <TestCard
+                  key={`${item._id}-${i}`}
+                  item={item}
+                  batchId={batchId}
+                  subjectId={subjectId}
+                  topicId={topicId}
+                  onPreviewPdf={(pdf) => setPreviewPdf(pdf)}
+                />
+              );
+            }
             return (
-              <VideoRow
+              <DocRow
                 key={`${item._id}-${i}`}
                 item={item}
-                batchId={batchId}
-                subjectId={subjectId}
-                topicId={topicId}
-              />
-            );
-          }
-          if (tab === "Test") {
-            return (
-              <TestCard
-                key={`${item._id}-${i}`}
-                item={item}
-                batchId={batchId}
-                subjectId={subjectId}
-                topicId={topicId}
                 onPreviewPdf={(pdf) => setPreviewPdf(pdf)}
               />
             );
-          }
-          return (
-            <DocRow
-              key={`${item._id}-${i}`}
-              item={item}
-              onPreviewPdf={(pdf) => setPreviewPdf(pdf)}
-            />
-          );
-        })}
-      </div>
+          })}
+        </div>
 
-      {/* PDF In-App Preview Dialog */}
-      <Dialog open={!!previewPdf} onOpenChange={(open) => !open && setPreviewPdf(null)}>
-        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-4 sm:p-6 flex flex-col gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-          <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-border dark:border-slate-800">
-            <div className="min-w-0 flex-1 pr-4">
-              <DialogTitle className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
-                {previewPdf?.name ?? "PDF Document"}
-              </DialogTitle>
-              <p className="text-[11px] text-muted-foreground mt-0.5">In-app document viewer</p>
+        {/* PDF In-App Preview Dialog */}
+        <Dialog open={!!previewPdf} onOpenChange={(open) => !open && setPreviewPdf(null)}>
+          <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-4 sm:p-6 flex flex-col gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-border dark:border-slate-800">
+              <div className="min-w-0 flex-1 pr-4">
+                <DialogTitle className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  {previewPdf?.name ?? "PDF Document"}
+                </DialogTitle>
+                <p className="text-[11px] text-muted-foreground mt-0.5">In-app document viewer</p>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 w-full h-full min-h-0 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-hidden border border-border dark:border-slate-800">
+              {previewPdf && (
+                <iframe
+                  src={previewPdf.url}
+                  className="w-full h-full border-0"
+                  title={previewPdf.name}
+                />
+              )}
             </div>
-          </DialogHeader>
-          <div className="flex-1 w-full h-full min-h-0 bg-slate-50 dark:bg-slate-950 rounded-lg overflow-hidden border border-border dark:border-slate-800">
-            {previewPdf && (
-              <iframe
-                src={previewPdf.url}
-                className="w-full h-full border-0"
-                title={previewPdf.name}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </Shell>
+          </DialogContent>
+        </Dialog>
+      </Shell>
+    </RequireAuth>
   );
 }
 
