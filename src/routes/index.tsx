@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Check,
   Plus,
+  BookOpen,
 } from "lucide-react";
 import { fetchAllBatches } from "@/lib/api";
 import { Shell, PageTitle, Loading, ErrorBox, EmptyBox } from "@/components/shell";
@@ -55,10 +56,18 @@ function formatBatchDate(dateStr?: string): string {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-IN", {
-      month: "short",
-      year: "numeric",
-    });
+    const day = d.getDate();
+    const suffix =
+      day % 10 === 1 && day !== 11
+        ? "st"
+        : day % 10 === 2 && day !== 12
+          ? "nd"
+          : day % 10 === 3 && day !== 13
+            ? "rd"
+            : "th";
+    const month = d.toLocaleDateString("en-IN", { month: "short" });
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}${suffix} ${month}’${year}`;
   } catch {
     return dateStr;
   }
@@ -174,16 +183,15 @@ function BatchesPage() {
   return (
     <RequireAuth>
       <Shell>
-        <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-sky-600">
-          <Sparkles className="h-3.5 w-3.5 text-sky-500" />
-          <span>Akki Study Batches</span>
+        <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+          <span>Batches</span>
         </div>
         <PageTitle
-          title={activeTab === "enrolled" ? "My Enrolled Batches" : "Explore Batches"}
+          title={activeTab === "enrolled" ? "My Enrolled Batches" : "Popular Courses"}
           subtitle={
             activeTab === "enrolled"
               ? "Your active enrolled study batches, ready for video lectures, chapter notes and DPPs."
-              : "Browse all completed and active batches, full lectures, notes, and DPPs."
+              : "Explore high-definition video lectures, chapter notes, and daily practice problem sheets."
           }
         />
 
@@ -347,125 +355,146 @@ function BatchesPage() {
         )}
 
         {/* Batches Grid */}
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2">
           {displayedBatches.map((b) => {
             const enrolled = isEnrolled(b._id);
 
+            const fee = b.feeTotal && b.feeTotal > 0 ? b.feeTotal : 0;
+            const originalPrice = fee > 0 ? Math.round(fee * 1.5) : 4999;
+            const discountPercent =
+              fee > 0 ? Math.round(((originalPrice - fee) / originalPrice) * 100) : 100;
+
+            const classText = b.class
+              ? `Class ${b.class} ${b.type ? b.type.replace("_", " ") : "JEE"}`
+              : b.type
+                ? b.type.replace("_", " ")
+                : "Class 11 JEE";
+            const languageText = (b.language || "HINGLISH").toUpperCase();
+            const targetExamText =
+              b.byName || (b.name.includes("NEET") ? "NEET 2026/27" : "JEE 2027/28");
+            const dateFormatted = b.startDate
+              ? `Started on ${formatBatchDate(b.startDate)}`
+              : "All Lectures Uploaded";
+
             return (
-              <Link
+              <div
                 key={b._id}
-                to="/batches/$batchId"
-                params={{ batchId: b._id }}
-                className="group card-surface flex flex-col justify-between overflow-hidden bg-white dark:bg-slate-900 border border-sky-100 dark:border-slate-800 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 dark:hover:border-sky-600 hover:shadow-md hover:shadow-sky-100 dark:hover:shadow-none"
+                className="group flex flex-col justify-between overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-gray-300 dark:border-slate-800 shadow-xs hover:shadow-md transition duration-200"
               >
                 <div>
-                  {b.previewImage ? (
-                    <div className="relative h-44 w-full overflow-hidden bg-sky-50 dark:bg-slate-800">
+                  {/* Top Banner Image (PW 240px style) */}
+                  <Link
+                    to="/batches/$batchId"
+                    params={{ batchId: b._id }}
+                    className="block relative h-56 sm:h-60 w-full overflow-hidden bg-black"
+                  >
+                    {b.previewImage ? (
                       <img
                         src={b.previewImage}
                         alt={`${b.name} batch cover`}
                         loading="lazy"
                         className="h-full w-full object-cover transition duration-300 group-hover:scale-102"
                       />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-slate-950 text-white font-bold text-2xl">
+                        {b.name.slice(0, 3).toUpperCase()}
+                      </div>
+                    )}
 
-                      {/* Enrolled badge */}
-                      {enrolled && (
-                        <div className="absolute top-3 left-3 rounded-md bg-emerald-600 text-white px-2 py-0.5 text-[11px] font-bold shadow-sm backdrop-blur-xs flex items-center gap-1">
-                          <Check className="h-3 w-3 stroke-3" />
-                          <span>Enrolled</span>
-                        </div>
-                      )}
+                    {/* Enrolled Badge Overlay */}
+                    {enrolled && (
+                      <div className="absolute top-3 left-3 rounded-lg bg-emerald-600 text-white px-2.5 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 backdrop-blur-xs">
+                        <Check className="h-3.5 w-3.5 stroke-3" />
+                        <span>Enrolled</span>
+                      </div>
+                    )}
+                  </Link>
 
-                      {b.status && (
-                        <div className="absolute right-3 top-3 rounded-md bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 text-[11px] font-bold text-sky-700 dark:text-sky-300 shadow-sm backdrop-blur-xs">
-                          {b.status}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="relative h-44 w-full bg-gradient-to-br from-sky-50 to-sky-100 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center text-sky-600 dark:text-sky-400 font-bold text-xl">
-                      {b.name.slice(0, 2).toUpperCase()}
-                      {enrolled && (
-                        <div className="absolute top-3 left-3 rounded-md bg-emerald-600 text-white px-2 py-0.5 text-[11px] font-bold shadow-sm flex items-center gap-1">
-                          <Check className="h-3 w-3 stroke-3" />
-                          <span>Enrolled</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
+                  {/* Card Content Area */}
                   <div className="p-5">
-                    {/* Clean unboxed metadata per Frontend Design Constitution */}
-                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-                      <span>{b.language ?? "Hinglish"}</span>
-                      {b.class && (
-                        <>
-                          <span className="text-slate-300 dark:text-slate-700">·</span>
-                          <span>Class {b.class}</span>
-                        </>
-                      )}
-                      {b.type && !b.class && (
-                        <>
-                          <span className="text-slate-300 dark:text-slate-700">·</span>
-                          <span>{(b.type ?? "").replace("_", " ")}</span>
-                        </>
-                      )}
+                    {/* Row 1: Orange Class Tag + Language Pill */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-orange-600 dark:text-orange-400 font-semibold text-xs sm:text-sm tracking-tight truncate">
+                        {classText}
+                      </span>
+                      <span className="inline-flex items-center justify-center bg-stone-50 dark:bg-slate-800 border border-stone-300 dark:border-slate-700 px-2.5 py-0.5 rounded text-[10.5px] font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide shrink-0">
+                        {languageText}
+                      </span>
                     </div>
 
-                    <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition leading-snug">
-                      {b.name}
-                    </h2>
+                    {/* Row 2: Batch Title */}
+                    <Link to="/batches/$batchId" params={{ batchId: b._id }} className="block">
+                      <h2 className="text-zinc-800 dark:text-zinc-100 text-lg font-bold line-clamp-1 group-hover:text-primary transition leading-snug">
+                        {b.name}
+                      </h2>
+                    </Link>
 
-                    {b.byName && (
-                      <p className="mt-1.5 line-clamp-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                        {b.byName}
-                      </p>
-                    )}
+                    {/* Row 3: Target Exam with Icon */}
+                    <div className="mt-3 flex items-center gap-2 text-neutral-700 dark:text-neutral-300 text-sm font-normal">
+                      <BookOpen className="h-4 w-4 text-gray-500 dark:text-gray-400 shrink-0" />
+                      <span className="truncate">{targetExamText}</span>
+                    </div>
 
-                    {(b.startDate || b.endDate) && (
-                      <p className="mt-3 text-xs text-slate-400 dark:text-slate-500 font-medium">
-                        {b.startDate ? formatBatchDate(b.startDate) : ""}
-                        {b.endDate ? ` → ${formatBatchDate(b.endDate)}` : ""}
-                      </p>
-                    )}
+                    {/* Row 4: Status + Separator + Started on Date */}
+                    <div className="mt-2.5 flex items-center gap-2 text-neutral-700 dark:text-neutral-300 text-xs sm:text-sm font-normal">
+                      <span className="size-2.5 rounded-full bg-rose-700 shrink-0 inline-block" />
+                      <span className="shrink-0">{b.status || "Ongoing"}</span>
+                      <span className="w-px h-3.5 bg-stone-300 dark:bg-slate-700 shrink-0" />
+                      <span className="text-zinc-600 dark:text-zinc-400 text-xs truncate">
+                        {dateFormatted}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Card Footer with Enroll Toggle and View Button */}
-                <div className="border-t border-sky-100/80 dark:border-slate-800/80 bg-sky-50/30 dark:bg-slate-850/50 px-5 py-3 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleEnroll(b._id, b.name);
-                    }}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer ${
-                      enrolled
-                        ? "border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                        : "border border-sky-200 dark:border-sky-800 bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-slate-700"
-                    }`}
-                    title={enrolled ? "Click to unenroll" : "Click to enroll in batch"}
-                  >
-                    {enrolled ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 stroke-3" />
-                        <span>Enrolled</span>
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-3.5 w-3.5 text-sky-500" />
-                        <span>Enroll</span>
-                      </>
-                    )}
-                  </button>
+                {/* Row 5: Price & Action Buttons (PW Signature Bottom Row) */}
+                <div className="p-5 pt-0">
+                  <div className="pt-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    {/* Price Side */}
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-zinc-800 dark:text-white text-base sm:text-lg font-bold">
+                          {fee > 0 ? `₹${fee.toLocaleString("en-IN")}` : "FREE"}
+                        </span>
+                        <span className="text-neutral-400 text-xs line-through">
+                          ₹{originalPrice.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="text-green-700 dark:text-green-400 text-xs sm:text-sm font-bold mt-0.5">
+                        {discountPercent > 0 ? `${discountPercent}% OFF` : "FREE ACCESS"}
+                      </div>
+                    </div>
 
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-400 group-hover:text-sky-700 dark:group-hover:text-sky-300 transition">
-                    <span>{enrolled ? "Study Now" : "Explore"}</span>
-                    <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
-                  </span>
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to="/batches/$batchId"
+                        params={{ batchId: b._id }}
+                        className="bg-neutral-800 hover:bg-neutral-900 dark:bg-sky-600 dark:hover:bg-sky-500 text-white font-bold text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5"
+                      >
+                        <span>{enrolled ? "Study Now" : "Explore"}</span>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleEnroll(b._id, b.name)}
+                        title={enrolled ? "Unenroll batch" : "Enroll batch"}
+                        className={`w-11 h-11 rounded-xl border flex items-center justify-center transition cursor-pointer ${
+                          enrolled
+                            ? "border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400"
+                            : "border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-750 text-neutral-700 dark:text-neutral-300"
+                        }`}
+                      >
+                        {enrolled ? (
+                          <Check className="h-4 w-4 stroke-3 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                          <BookmarkCheck className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>
